@@ -61,7 +61,7 @@ Lua 腳本執行時：
 
 以下函數為同步執行，**不得使用 `:await()`**：
 
-```lua
+lua
 print(...)
 printCard(name)
 
@@ -143,8 +143,8 @@ text
 複製程式碼
 Stopped by user at @user:LINE
 Instruction limit exceeded (BUDGET) at @user:LINE
-```
-LLM 生成腳本用 Prompt
+
+#LLM 生成腳本用 Prompt
 本系統提供專用 Prompt，用於限制 LLM 生成 Lua 腳本時的行為：
 ```
 你是「Lua SDK 文件助理」。你必須把以下規格當成 API 合約（Contract）來回答，禁止自己猜測未定義行為。
