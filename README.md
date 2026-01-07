@@ -60,7 +60,7 @@ Lua 腳本執行時：
 ### 同步函數
 
 以下函數為同步執行，**不得使用 `:await()`**：
-
+```
 lua
 print(...)
 printCard(name)
@@ -68,13 +68,16 @@ printCard(name)
 createFile(name, payload)
 updateFile(name, payload)
 deleteFile(name)
+```
 非同步函數
 以下函數會回傳 Promise-like userdata，必須使用 :await()：
 
 lua
 複製程式碼
+```
 listFiles():await()    -- table<string> | nil
 getFile(name):await()  -- FileRecord | nil
+```
 await 使用規則
 只有 listFiles() 與 getFile() 可以使用 :await()
 
@@ -82,7 +85,7 @@ await 使用規則
 
 正確用法
 lua
-複製程式碼
+```
 local ok, names = pcall(function()
   return listFiles():await()
 end)
@@ -91,14 +94,16 @@ if not ok then
   print("listFiles failed:", tostring(names))
   return
 end
-錯誤用法
-lua
-複製程式碼
+```
+
+```
 print():await()
 createFile(...):await()
 FileRecord 格式
 lua
-複製程式碼
+```
+
+```
 FileRecord = {
   content   = string,
   status    = "TODO" | "DOING" | "DONE",
@@ -107,7 +112,7 @@ FileRecord = {
   createdAt = string,  -- ISO-8601
   updatedAt = string   -- ISO-8601
 }
-
+```
 dueAt 規則
 僅接受 ISO-8601 字串
 
