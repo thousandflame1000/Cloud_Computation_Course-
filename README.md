@@ -122,7 +122,7 @@ local f = getFile("task.txt"):await()
 
 Stopped by user at @user:LINE
 Instruction limit exceeded (BUDGET) at @user:LINE
-'''
+```
 📐 設計原則（Why）
 
 ❌ 不相信隱式 async
