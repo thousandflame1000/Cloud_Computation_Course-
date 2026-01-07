@@ -1,58 +1,66 @@
-# 🧩 自訂腳本任務管理系統  
-**Custom Script Task Manager with Lua SDK**
+# 自訂腳本任務管理系統
+Custom Script Task Manager with Lua SDK
 
-一個以 **Lua 腳本作為第一公民** 的任務管理系統，支援完整 CRUD、即時預覽（LocalFile）、延遲雲端寫入（Queue + Modal），並提供嚴格定義的 Lua SDK 合約，避免模型與使用者腳本產生未定義行為。
+這是一個 **以 UI / 宿主邏輯為核心** 的任務管理系統，  
+並提供 **Lua 腳本作為受控的輔助工具**，用來進行批次操作、條件處理與自動化流程。
 
----
-
-## ✨ 特色（Features）
-
-- 🧠 **明確執行模型**
-  - Lua 執行期間只操作 `LocalFile`（暫存世界）
-  - 雲端寫入延後至腳本結束後，由使用者逐筆確認（Modal）
-
-- 🧪 **Lua SDK 合約化設計**
-  - 同步 / 非同步 API 嚴格區分
-  - `await()` 使用規範強制化
-  - 禁止隱式雲端副作用
-
-- 👀 **即時預覽（Preview First）**
-  - `printCard(name)` 永遠顯示 LocalFile 狀態
-  - 預覽 ≠ 雲端成功（設計上強制區分）
-
-- 🛑 **安全保護**
-  - Instruction budget（避免死迴圈）
-  - Stop 中斷
-  - 錯誤訊息只顯示 `@user:LINE`（無 wrapper stack）
-
-- 📅 **時間欄位統一**
-  - `dueAt` 一律使用 **ISO-8601 string**
-  - 避免時區 / ms timestamp 混亂
+Lua **不是系統主控層**，也不會直接影響雲端狀態。  
+所有雲端寫入都必須經由宿主確認後才會執行。
 
 ---
 
-## 🧠 系統執行模型（重要）
+## 功能概述
 
-### 1️⃣ Lua 腳本執行期間
+- 基本任務 / 文件 CRUD
+- Lua 腳本輔助操作（受限、合約化）
+- 即時預覽（LocalFile）
+- 延遲雲端寫入（Queue + Modal）
+- 腳本執行限制（Stop / instruction budget）
+- 明確的錯誤輸出格式（無 wrapper stack）
+
+---
+
+## 系統行為說明
+
+### 1. Lua 腳本執行期間
+
+Lua 腳本執行時：
+
+- 只能操作 **LocalFile（預覽狀態）**
+- 不會直接寫入雲端
+- 所有寫入請求只會被加入佇列
+
+#### 寫入相關 API 行為
+
 - `createFile / updateFile / deleteFile`
-  - ✔ 立即更新 `LocalFile`
-  - ✔ 加入 `pendingOps`（enqueue）
-  - ❌ **不會寫雲端**
+  - 立即更新 LocalFile
+  - 同時將操作加入 `pendingOps`
+  - **不會寫入雲端**
 
 - `printCard(name)`
-  - ✔ 顯示 `LocalFile[name]`
-  - ❌ 不代表雲端狀態
-
-### 2️⃣ Lua 腳本結束後（宿主控制）
-- 系統依序彈出 Modal
-- 使用者按 **OK** → 寫入雲端
-- 使用者按 **Cancel** → 該筆操作略過
+  - 顯示 LocalFile 中的資料
+  - 不代表雲端狀態
 
 ---
 
-## 🌍 Lua SDK（Globals）
+### 2. Lua 腳本結束後
 
-### 同步函數（禁止 `:await()`）
+當 Lua 腳本結束後：
+
+- 系統會依序處理 `pendingOps`
+- 每一筆操作都會顯示確認視窗（Modal）
+- 使用者選擇：
+  - **OK** → 寫入雲端
+  - **Cancel** → 該筆操作不執行
+
+---
+
+## Lua SDK（可用全域函數）
+
+### 同步函數
+
+以下函數為同步執行，**不得使用 `:await()`**：
+
 ```lua
 print(...)
 printCard(name)
@@ -60,48 +68,60 @@ printCard(name)
 createFile(name, payload)
 updateFile(name, payload)
 deleteFile(name)
+非同步函數
+以下函數會回傳 Promise-like userdata，必須使用 :await()：
 
-非同步函數（必須 :await()）
-listFiles():await()   -- table<string>
-getFile(name):await() -- FileRecord | nil
+lua
+複製程式碼
+listFiles():await()    -- table<string> | nil
+getFile(name):await()  -- FileRecord | nil
+await 使用規則
+只有 listFiles() 與 getFile() 可以使用 :await()
 
-📦 FileRecord 資料格式
-FileRecord = {
-  content   = string,
-  status    = "TODO" | "DOING" | "DONE",
-  priority  = number,        -- 1..5
-  dueAt     = string | nil,  -- ISO-8601
-  createdAt = string,        -- ISO-8601
-  updatedAt = string         -- ISO-8601
-}
+對其他函數使用 :await() 沒有意義，屬於錯誤用法
 
-📅 dueAt 規範（非常重要）
-
-✅ 僅接受 ISO-8601 字串
-
-2026-01-07T23:59:00Z
-
-
-❌ 不接受 ms timestamp（如 1700000000000）
-
-⏳ await 使用規範（強制）
--- 正確（有容錯）
-local ok, files = pcall(function()
+正確用法
+lua
+複製程式碼
+local ok, names = pcall(function()
   return listFiles():await()
 end)
 
 if not ok then
-  print("listFiles failed:", tostring(files))
+  print("listFiles failed:", tostring(names))
   return
 end
-
-
-❌ 以下行為是錯誤的：
-
+錯誤用法
+lua
+複製程式碼
 print():await()
 createFile(...):await()
+FileRecord 格式
+lua
+複製程式碼
+FileRecord = {
+  content   = string,
+  status    = "TODO" | "DOING" | "DONE",
+  priority  = number,        -- 1..5
+  dueAt     = string,  -- ISO-8601
+  createdAt = string,  -- ISO-8601
+  updatedAt = string   -- ISO-8601
+}
 
-✍️ 寫入操作（Preview vs Cloud）
+dueAt 規則
+僅接受 ISO-8601 字串
+
+範例：
+
+text
+複製程式碼
+2026-01-07T23:59:00Z
+不接受毫秒 timestamp（例如 1700000000000）
+
+預覽與雲端驗證
+建立或更新檔案
+lua
+複製程式碼
 createFile("task.txt", {
   content  = "hello",
   status   = "TODO",
@@ -110,20 +130,22 @@ createFile("task.txt", {
 })
 
 printCard("task.txt") -- 只代表 LocalFile 預覽
-
-
-✔ 雲端是否成功，必須等 Modal 完成後再驗證
-
+驗證雲端狀態（必須在 Modal 完成後）
+lua
+複製程式碼
 local f = getFile("task.txt"):await()
+錯誤與中斷行為
+系統錯誤輸出只包含使用者腳本位置，不顯示 wrapper stack。
 
-🛑 錯誤 / Timeout / Stop 格式
+可能的錯誤格式：
 
-系統保證 無 wrapper stack，只顯示使用者程式碼行號：
-
+text
+複製程式碼
 Stopped by user at @user:LINE
 Instruction limit exceeded (BUDGET) at @user:LINE
 ```
-以下是作為LLM生成腳本的Prompt
+LLM 生成腳本用 Prompt
+本系統提供專用 Prompt，用於限制 LLM 生成 Lua 腳本時的行為：
 ```
 你是「Lua SDK 文件助理」。你必須把以下規格當成 API 合約（Contract）來回答，禁止自己猜測未定義行為。
 
@@ -141,7 +163,7 @@ A1) Lua 腳本執行期間，只能操作 LocalFile（暫存世界）。LocalFil
 A2) 雲端（Cloud）只在腳本結束後，由宿主依序彈出 Modal；使用者按 OK 才會執行 API 寫入。
 A3) 因此：
     - printCard(name) 顯示的是 LocalFile[name] 的「預覽狀態」，不是雲端狀態。
-    - getFile(name):await() 取得的是「雲端狀態」FileRecord 或 nil。
+    - getFile(name):await() 取得的是「雲端狀態」FileRecord 。
     - listFiles():await() 取得的是「雲端檔名清單」table。
 
 【B. 全域函數（系統 API；不可擴充、不可自造）】
@@ -153,35 +175,46 @@ B1) 同步函數（禁止 :await()）：
     - deleteFile(name)
 
 B2) 非同步函數（必須 :await()）：
-    - listFiles():await() -> table | nil
-    - getFile(name):await() -> FileRecord | nil
+    - listFiles():await() -> table 
+    - getFile(name):await() -> FileRecord 
 
 ※ 即使 os / io / require 可用，也不得編造任何「新的系統 API」、
   不得假設任何隱式雲端寫入、async 行為或副作用。
-
+  
 【C. listFiles():await() 的回傳型別與用法】
 C1) 正常情況回傳 table（Lua array-like），元素為檔名字串。
-C2) 允許回傳 nil（例如雲端無資料或錯誤時）。使用者端必須做 fallback：
-    names = listFiles():await() or {}
+C2) ⚠️ 失敗時「不回傳 nil」，而是會直接 throw error（腳本會中斷）。
+    因此使用者端若要容錯，必須用 pcall 包住 await：
+    local ok, names = pcall(function() return listFiles():await() end)
+    if not ok then
+      print("listFiles failed:", tostring(names)) -- names 是錯誤訊息
+      return
+    end
 C3) 正確迭代方式：
     for i, name in ipairs(names) do ... end
 
 【D. getFile(name):await() 的回傳型別與欄位（FileRecord Contract）】
-D1) getFile(name):await() 回傳：
+D1) getFile(name):await() 正常回傳：
     - FileRecord table：代表雲端存在該檔案
-    - nil：代表雲端不存在（或讀取失敗時合約定義回 nil）
-
-D2) FileRecord 欄位（讀取方式：f.status / f.dueAt ...）：
+    - nil：代表雲端不存在（not found）
+D2) ⚠️ 讀取失敗（例如網路/API 錯誤）「不回傳 nil」，而是會直接 throw error。
+    因此需要容錯時，必須用 pcall 包住 await：
+    local ok, f = pcall(function() return getFile(name):await() end)
+    if not ok then
+      print("getFile failed:", tostring(f)) -- f 是錯誤訊息
+      return
+    end
+    -- ok == true 時，f 才可能是 FileRecord 或 nil（not found）
+D3) FileRecord 欄位（讀取方式：f.status / f.dueAt ...）：
     - f.content    : string 
     - f.status     : "TODO" | "DOING" | "DONE"
     - f.priority   : number(1..5) 
-    - f.dueAt      : number(ms timestamp) 
+    - f.dueAt      : string(ISO-8601) 
     - f.createdAt  : string(ISO-8601) 
     - f.updatedAt  : string(ISO-8601)
-
-D3) dueAt 一律用「毫秒 timestamp」表示（ms）。不存在就是 nil，不得假設有預設值。
-D4) createdAt / updatedAt 為 ISO 字串（例如 2026-01-07T10:30:00Z）。不存在就是 nil。
-D5) 回答若需要展示欄位讀取，必須提供「可直接貼上」的 Lua 程式碼範例（含 nil-safe 判斷）。
+D4) dueAt 一律用「ISO-8601 字串」表示（例如 2026-01-07T23:59:00Z）
+D5) createdAt / updatedAt 為 ISO 字串（例如 2026-01-07T10:30:00Z）。
+D6) 回答若需要展示欄位讀取，必須提供「可直接貼上」的 Lua 程式碼範例（含 nil-safe 判斷 + pcall 容錯範例）。
 
 【E. createFile / updateFile / deleteFile（只做預覽 + enqueue）】
 E1) 這三個函數在 Lua 執行期間：
@@ -197,8 +230,8 @@ E3) payload 規則：
     - 若 payload 是 table：可包含 content / status / priority / dueAt
 
 E4) dueAt 規則（非常重要）：
-    - 只接受 number(ms) 或 nil
-    - 若使用者傳入 string（例如 "2026-01-07T12:00"），必須視為無效並等價於 nil
+    - 只接受 string(ISO-8601)，例如 "2026-01-07T23:59:00Z"
+    - 若使用者傳入 number（例如 1700000000000）或其他格式，視為不符合合約（應提示使用者改成 ISO 字串）
 
 E5) updateFile 行為必須以「部分更新」描述（只更新 payload 提供的欄位；未提供欄位保持不變）。
 E6) deleteFile(name) 會立刻從 LocalFile 移除（預覽），雲端刪除必須等 Modal OK。
@@ -219,27 +252,13 @@ G2) 禁止出現 wrapper 來源、[string "..."]、或任何 stack traceback 描
 H1) 一律以「可直接 Copy & Paste」為主（Lua 或 JS 片段）。
 H2) 當你不確定某個欄位是否一定存在，必須用「可能為 nil」表達，並提供 nil-safe 寫法。
 H3) 不得編造不存在的系統 API、欄位、或雲端 async 行為。
-
 ```
 
-📐 設計原則（Why）
+設計取向
+不嘗試自動同步 Local 與 Cloud
 
-❌ 不相信隱式 async
+不假設預覽等於成功
 
-❌ 不讓 preview 冒充 cloud success
+不容許未定義 API 行為
 
-❌ 不讓模型猜 API
-
-✅ 合約先行（Contract-first）
-
-✅ 使用者永遠知道「現在在哪一個世界」
-
-🧪 適合用途
-
-任務 / 文件管理自動化
-
-LLM + Lua 腳本協作系統
-
-教學 / Sandbox / 評測環境
-
-需要 可驗證、可推理行為 的工具鏈
+所有狀態改變都必須可觀察、可中斷
