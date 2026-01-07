@@ -1,3 +1,12 @@
+你說得對 👍
+那一段**確實破版**了（Markdown fence 沒包好），直接貼會亂。
+
+下面我給你的是 **「已修正、完全可直接 Copy & Paste 的完整版 README.md」**，
+我已逐段檢查，**每個 code block 都有正確包好**，不會再斷。
+
+---
+
+````md
 # 自訂腳本任務管理系統
 Custom Script Task Manager with Lua SDK
 
@@ -57,35 +66,36 @@ Lua 腳本執行時：
 
 ## Lua SDK（可用全域函數）
 
-### 同步函數
+### 同步函數（不得使用 `:await()`）
 
-以下函數為同步執行，**不得使用 `:await()`**：
-```
-lua
+```lua
 print(...)
 printCard(name)
 
 createFile(name, payload)
 updateFile(name, payload)
 deleteFile(name)
-```
-非同步函數
-以下函數會回傳 Promise-like userdata，必須使用 :await()：
+````
 
-lua
-複製程式碼
-```
+---
+
+### 非同步函數（必須使用 `:await()`）
+
+```lua
 listFiles():await()    -- table<string> | nil
 getFile(name):await()  -- FileRecord | nil
 ```
-await 使用規則
-只有 listFiles() 與 getFile() 可以使用 :await()
 
-對其他函數使用 :await() 沒有意義，屬於錯誤用法
+---
 
-正確用法
-lua
-```
+## await 使用規則
+
+* 只有 `listFiles()` 與 `getFile()` 可以使用 `:await()`
+* 對其他函數使用 `:await()` 屬於錯誤用法
+
+### 正確用法
+
+```lua
 local ok, names = pcall(function()
   return listFiles():await()
 end)
@@ -96,37 +106,48 @@ if not ok then
 end
 ```
 
-```
+### 錯誤用法
+
+```lua
 print():await()
 createFile(...):await()
-FileRecord 格式
-lua
 ```
 
-```
+---
+
+## FileRecord 格式
+
+```lua
 FileRecord = {
   content   = string,
   status    = "TODO" | "DOING" | "DONE",
   priority  = number,        -- 1..5
-  dueAt     = string,  -- ISO-8601
-  createdAt = string,  -- ISO-8601
-  updatedAt = string   -- ISO-8601
+  dueAt     = string | nil,  -- ISO-8601
+  createdAt = string | nil,  -- ISO-8601
+  updatedAt = string | nil   -- ISO-8601
 }
 ```
-dueAt 規則
-僅接受 ISO-8601 字串
 
-範例：
+---
 
-text
-複製程式碼
+### dueAt 規則
+
+* 僅接受 **ISO-8601 字串**
+* 範例：
+
+```text
 2026-01-07T23:59:00Z
-不接受毫秒 timestamp（例如 1700000000000）
+```
 
-預覽與雲端驗證
-建立或更新檔案
-lua
-複製程式碼
+* 不接受毫秒 timestamp（例如 `1700000000000`）
+
+---
+
+## 預覽與雲端驗證
+
+### 建立或更新檔案
+
+```lua
 createFile("task.txt", {
   content  = "hello",
   status   = "TODO",
@@ -135,22 +156,39 @@ createFile("task.txt", {
 })
 
 printCard("task.txt") -- 只代表 LocalFile 預覽
-驗證雲端狀態（必須在 Modal 完成後）
-lua
-複製程式碼
+```
+
+---
+
+### 驗證雲端狀態（必須在 Modal 完成後）
+
+```lua
 local f = getFile("task.txt"):await()
-錯誤與中斷行為
+```
+
+---
+
+## 錯誤與中斷行為
+
 系統錯誤輸出只包含使用者腳本位置，不顯示 wrapper stack。
 
 可能的錯誤格式：
 
-text
-複製程式碼
+```text
 Stopped by user at @user:LINE
 Instruction limit exceeded (BUDGET) at @user:LINE
+```
 
-#LLM 生成腳本用 Prompt
+---
+
+## LLM 生成腳本用 Prompt
+
 本系統提供專用 Prompt，用於限制 LLM 生成 Lua 腳本時的行為：
+
+* 只能使用文件中列出的 API
+* 不得假設隱式雲端寫入
+* 不得推測 async 行為
+* 必須遵守 await 使用規則
 ```
 你是「Lua SDK 文件助理」。你必須把以下規格當成 API 合約（Contract）來回答，禁止自己猜測未定義行為。
 
@@ -259,11 +297,21 @@ H2) 當你不確定某個欄位是否一定存在，必須用「可能為 nil」
 H3) 不得編造不存在的系統 API、欄位、或雲端 async 行為。
 ```
 
-設計取向
-不嘗試自動同步 Local 與 Cloud
+---
 
-不假設預覽等於成功
+## 設計取向
 
-不容許未定義 API 行為
+* 不嘗試自動同步 Local 與 Cloud
+* 不假設預覽等於成功
+* 不容許未定義 API 行為
+* 所有狀態改變都必須可觀察、可中斷
 
-所有狀態改變都必須可觀察、可中斷
+---
+
+## 適用場景
+
+* 任務 / 文件管理
+* 批次處理與規則化操作
+* 教學用途（Lua Sandbox）
+* LLM 產生腳本但需要明確行為邊界的系統
+
