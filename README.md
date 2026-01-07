@@ -1,12 +1,4 @@
-你說得對 👍
-那一段**確實破版**了（Markdown fence 沒包好），直接貼會亂。
 
-下面我給你的是 **「已修正、完全可直接 Copy & Paste 的完整版 README.md」**，
-我已逐段檢查，**每個 code block 都有正確包好**，不會再斷。
-
----
-
-````md
 # 自訂腳本任務管理系統
 Custom Script Task Manager with Lua SDK
 
