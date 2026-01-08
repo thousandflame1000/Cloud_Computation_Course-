@@ -27,7 +27,7 @@ Lua **不是系統主控層**，亦 **不具備任何直接影響雲端狀態的
 
 ### 2.1 架構圖
 
-![Figure 1. System architecture (Frontend + Lua Sandbox + API Gateway + Lambda + DynamoDB + S3)](docs/architecture.png)
+![Figure 1. System architecture (Frontend + Lua Sandbox + API Gateway + Lambda + DynamoDB + S3)](./螢幕擷取畫面 2026-01-07 202442.png)
 
 **Figure 1.** 系統整體架構示意圖。
 Frontend Web App 為唯一主控層，內部包含 Lua Sandbox。
