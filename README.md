@@ -27,7 +27,7 @@ Lua **不是系統主控層**，亦 **不具備任何直接影響雲端狀態的
 
 ### 2.1 架構圖
 
-![Figure 1. System architecture (Frontend + Lua Sandbox + API Gateway + Lambda + DynamoDB + S3)](./螢幕擷取畫面 2026-01-07 202442.png)
+![Figure 1. System architecture (Frontend + Lua Sandbox + API Gateway + Lambda + DynamoDB + S3)](架構圖.png)
 
 **Figure 1.** 系統整體架構示意圖。
 Frontend Web App 為唯一主控層，內部包含 Lua Sandbox。
@@ -232,7 +232,7 @@ local f = getFile("task.txt"):await()
 
 ### 9.1 DynamoDB（結構化任務資料）
 
-![Figure 2. DynamoDB table snapshot for FileRecord items](docs/dynamodb-snapshot.png)
+![Figure 2. DynamoDB table snapshot for FileRecord items](螢幕擷取畫面-2026-01-07 202442.png.png)
 
 **Figure 2.** DynamoDB `files-table` 範例畫面。
 每一筆資料代表一個雲端 FileRecord，欄位包含：
