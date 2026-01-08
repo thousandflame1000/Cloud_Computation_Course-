@@ -232,7 +232,7 @@ local f = getFile("task.txt"):await()
 
 ### 9.1 DynamoDB（結構化任務資料）
 
-![Figure 2. DynamoDB table snapshot for FileRecord items](螢幕擷取畫面-2026-01-07 202442.png.png)
+![Figure 2. DynamoDB table snapshot for FileRecord items](螢幕擷取.png)
 
 **Figure 2.** DynamoDB `files-table` 範例畫面。
 每一筆資料代表一個雲端 FileRecord，欄位包含：
